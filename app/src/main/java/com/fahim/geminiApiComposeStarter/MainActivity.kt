@@ -5,17 +5,22 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import com.fahim.geminiApiComposeStarter.data.ApiKeyStorage
 import com.fahim.geminiApiComposeStarter.data.GeminiRepositoryImpl
 import com.fahim.geminiApiComposeStarter.ui.chat.ChatRoute
 import com.fahim.geminiApiComposeStarter.ui.chat.ChatViewModel
 import com.fahim.geminiApiComposeStarter.ui.theme.GeminiApiComposeStarterTheme
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
 
 class MainActivity : ComponentActivity() {
-
     private val viewModel: ChatViewModel by viewModels {
+        val apiKey = runBlocking(Dispatchers.IO) {
+            ApiKeyStorage(applicationContext).syncAndLoad(BuildConfig.GEMINI_API_KEY)
+        }
         ChatViewModel.factory(
-            repository = GeminiRepositoryImpl(apiKey = BuildConfig.GEMINI_API_KEY),
-            hasApiKey = BuildConfig.GEMINI_API_KEY.isNotBlank(),
+            repository = GeminiRepositoryImpl(apiKey = apiKey),
+            hasApiKey = apiKey.isNotBlank(),
         )
     }
 
