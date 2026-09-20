@@ -17,6 +17,7 @@ class ChatViewModel(
 
     private val _uiState = MutableStateFlow(ChatUiState())
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
+    private var nextId = 0L
 
     fun onPromptChange(value: String) {
         _uiState.update { it.copy(prompt = value, promptError = null) }
@@ -34,11 +35,24 @@ class ChatViewModel(
         }
         if (_uiState.value.isLoading) return
 
-        _uiState.update { it.copy(isLoading = true, errorMessage = null, promptError = null) }
+        _uiState.update {
+            it.copy(
+                messages = it.messages + ChatMessage(nextId++, prompt, isUser = true),
+                prompt = "",
+                isLoading = true,
+                errorMessage = null,
+                promptError = null,
+            )
+        }
         viewModelScope.launch {
             repository.generateText(prompt).fold(
                 onSuccess = { text ->
-                    _uiState.update { it.copy(isLoading = false, response = text) }
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            messages = it.messages + ChatMessage(nextId++, text, isUser = false),
+                        )
+                    }
                 },
                 onFailure = { error ->
                     _uiState.update {
