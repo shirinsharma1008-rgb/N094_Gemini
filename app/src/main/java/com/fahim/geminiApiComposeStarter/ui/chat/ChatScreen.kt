@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
@@ -22,9 +23,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material3.CircularProgressIndicator
@@ -37,7 +36,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -49,6 +50,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -57,12 +59,20 @@ import com.fahim.geminiApiComposeStarter.ui.text.toBoldAnnotatedString
 import com.fahim.geminiApiComposeStarter.ui.theme.GeminiApiComposeStarterTheme
 
 @Composable
-fun ChatRoute(viewModel: ChatViewModel) {
+fun ChatRoute(
+    viewModel: ChatViewModel,
+    widthSizeClass: WindowWidthSizeClass,
+    isDark: Boolean,
+    onToggleDark: () -> Unit,
+) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     ChatScreen(
         state = state,
         onPromptChange = viewModel::onPromptChange,
         onSend = viewModel::onSend,
+        widthSizeClass = widthSizeClass,
+        isDark = isDark,
+        onToggleDark = onToggleDark,
     )
 }
 
@@ -71,20 +81,44 @@ fun ChatScreen(
     state: ChatUiState,
     onPromptChange: (String) -> Unit,
     onSend: () -> Unit,
+    widthSizeClass: WindowWidthSizeClass = WindowWidthSizeClass.Compact,
+    isDark: Boolean = false,
+    onToggleDark: () -> Unit = {},
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(state.errorMessage) {
         state.errorMessage?.let { snackbarHostState.showSnackbar(it) }
     }
 
+    val isCompact = widthSizeClass == WindowWidthSizeClass.Compact
+    val contentMaxWidth = if (isCompact) Dp.Unspecified else 720.dp
+    val bubbleMaxWidth = if (isCompact) 300.dp else 480.dp
+
     Scaffold(
         modifier = Modifier.fillMaxSize().imePadding(),
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
         Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
-            Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .widthIn(max = contentMaxWidth)
+                    .fillMaxWidth()
+                    .align(Alignment.TopCenter)
+                    .padding(16.dp),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("Dark mode", fontSize = 14.sp)
+                    Spacer(Modifier.width(8.dp))
+                    Switch(checked = isDark, onCheckedChange = { onToggleDark() })
+                }
                 MessageList(
                     messages = state.messages,
+                    bubbleMaxWidth = bubbleMaxWidth,
                     modifier = Modifier.weight(1f).fillMaxWidth(),
                 )
                 PromptBar(
@@ -103,7 +137,11 @@ fun ChatScreen(
 }
 
 @Composable
-private fun MessageList(messages: List<ChatMessage>, modifier: Modifier = Modifier) {
+private fun MessageList(
+    messages: List<ChatMessage>,
+    bubbleMaxWidth: Dp,
+    modifier: Modifier = Modifier,
+) {
     val listState = rememberLazyListState()
 
     // Auto-scroll to the newest message whenever one is added.
@@ -125,14 +163,14 @@ private fun MessageList(messages: List<ChatMessage>, modifier: Modifier = Modifi
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             items(messages, key = { it.id }) { message ->
-                MessageBubble(message)
+                MessageBubble(message, bubbleMaxWidth)
             }
         }
     }
 }
 
 @Composable
-private fun MessageBubble(message: ChatMessage) {
+private fun MessageBubble(message: ChatMessage, maxWidth: Dp) {
     val isUser = message.isUser
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -160,7 +198,7 @@ private fun MessageBubble(message: ChatMessage) {
                 bottomStart = if (isUser) 16.dp else 4.dp,
                 bottomEnd = if (isUser) 4.dp else 16.dp,
             ),
-            modifier = Modifier.widthIn(max = 300.dp),
+            modifier = Modifier.widthIn(max = maxWidth),
         ) {
             val display = if (isUser) {
                 AnnotatedString(message.text)
@@ -240,7 +278,6 @@ private fun PromptBar(
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.Send,
                 contentDescription = stringResource(R.string.send),
-                tint = MaterialTheme.colorScheme.primary,
             )
         }
     }
