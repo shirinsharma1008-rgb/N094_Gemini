@@ -12,7 +12,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fahim.geminiApiComposeStarter.data.ApiKeyStorage
+import com.fahim.geminiApiComposeStarter.data.AppDatabase
 import com.fahim.geminiApiComposeStarter.data.GeminiRepositoryImpl
+import com.fahim.geminiApiComposeStarter.data.RoomChatHistoryRepository
 import com.fahim.geminiApiComposeStarter.data.UserPreferencesRepository
 import com.fahim.geminiApiComposeStarter.ui.chat.ChatRoute
 import com.fahim.geminiApiComposeStarter.ui.chat.ChatViewModel
@@ -29,6 +31,7 @@ class MainActivity : ComponentActivity() {
         }
         ChatViewModel.factory(
             repository = GeminiRepositoryImpl(apiKey = apiKey),
+            history = RoomChatHistoryRepository(AppDatabase.get(applicationContext).chatDao()),
             hasApiKey = apiKey.isNotBlank(),
         )
     }
@@ -52,6 +55,6 @@ class MainActivity : ComponentActivity() {
                 )
             }
         }
-        }
     }
+}
 

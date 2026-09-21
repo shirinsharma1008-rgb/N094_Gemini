@@ -3,6 +3,7 @@ package com.fahim.geminiApiComposeStarter.ui.chat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.fahim.geminiApiComposeStarter.data.ChatHistoryRepository
 import com.fahim.geminiApiComposeStarter.data.GeminiRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -12,12 +13,19 @@ import kotlinx.coroutines.launch
 
 class ChatViewModel(
     private val repository: GeminiRepository,
+    private val history: ChatHistoryRepository,
     private val hasApiKey: Boolean,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ChatUiState())
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
-    private var nextId = 0L
+    init {
+        viewModelScope.launch {
+            history.messages.collect { list ->
+                _uiState.update { it.copy(messages = list) }
+            }
+        }
+    }
 
     fun onPromptChange(value: String) {
         _uiState.update { it.copy(prompt = value, promptError = null) }
@@ -36,23 +44,14 @@ class ChatViewModel(
         if (_uiState.value.isLoading) return
 
         _uiState.update {
-            it.copy(
-                messages = it.messages + ChatMessage(nextId++, prompt, isUser = true),
-                prompt = "",
-                isLoading = true,
-                errorMessage = null,
-                promptError = null,
-            )
+            it.copy(prompt = "", isLoading = true, errorMessage = null, promptError = null)
         }
         viewModelScope.launch {
+            history.add(prompt, isUser = true)
             repository.generateText(prompt).fold(
                 onSuccess = { text ->
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            messages = it.messages + ChatMessage(nextId++, text, isUser = false),
-                        )
-                    }
+                    history.add(text, isUser = false)
+                    _uiState.update { it.copy(isLoading = false) }
                 },
                 onFailure = { error ->
                     _uiState.update {
@@ -66,15 +65,18 @@ class ChatViewModel(
         }
     }
 
-    companion object {
+    companion object{
         const val MISSING_API_KEY_MESSAGE =
             "GEMINI_API_KEY is missing. Add it to local.properties and rebuild."
 
-        fun factory(repository: GeminiRepository, hasApiKey: Boolean) =
-            object : ViewModelProvider.Factory {
-                @Suppress("UNCHECKED_CAST")
-                override fun <T : ViewModel> create(modelClass: Class<T>): T =
-                    ChatViewModel(repository, hasApiKey) as T
-            }
+        fun factory(
+            repository: GeminiRepository,
+            history: ChatHistoryRepository,
+            hasApiKey: Boolean,
+        ) = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                ChatViewModel(repository, history, hasApiKey) as T
+        }
     }
 }
