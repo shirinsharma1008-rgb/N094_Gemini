@@ -47,8 +47,9 @@ class ChatViewModel(
             it.copy(prompt = "", isLoading = true, errorMessage = null, promptError = null)
         }
         viewModelScope.launch {
+            val pastMessages = _uiState.value.messages
             history.add(prompt, isUser = true)
-            repository.generateText(prompt).fold(
+            repository.generateText(prompt, history = pastMessages).fold(
                 onSuccess = { text ->
                     history.add(text, isUser = false)
                     _uiState.update { it.copy(isLoading = false) }

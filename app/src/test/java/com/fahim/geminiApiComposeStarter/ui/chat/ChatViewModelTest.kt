@@ -26,7 +26,7 @@ private class FakeGeminiRepository(
     var lastPrompt: String? = null
     var callCount = 0
 
-    override suspend fun generateText(prompt: String): Result<String> {
+    override suspend fun generateText(prompt: String, history: List<ChatMessage>): Result<String> {
         callCount++
         lastPrompt = prompt
         return result
